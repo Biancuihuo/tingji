@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+.DS_Store
+.venv/
+*.egg-info/
+build/
+app/.build/
+app/build/
+demo-home/
+*.db
+*.db-shm
+*.db-wal
+secrets.json

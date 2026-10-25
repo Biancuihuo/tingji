@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>听记</title>
+<style>
+:root{
+  --bg:#f6f4ef; --card:#fffdf9; --ink:#22201c; --muted:#8a847a; --line:#e7e2d8; --accent:#c2552d; --me:#c2552d; --other:#3d6b8a; --far:#5b7d4f;
+  --chip:#efe9de; color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root{--bg:#171614; --card:#211f1c; --ink:#ece7de; --muted:#8f887c; --line:#34312c; --accent:#e07a50; --me:#e07a50; --other:#7fb0d2; --far:#9cc28c; --chip:#2c2925; color-scheme:dark;}
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 -apple-system,"PingFang SC","Hiragino Sans GB",sans-serif}
+.wrap{max-width:760px;margin:0 auto;padding:0 16px 80px}
+header{position:sticky;top:0;z-index:5;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.bar{max-width:760px;margin:0 auto;padding:12px 16px 0;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.logo{font-weight:700;font-size:18px;letter-spacing:.04em}
+.pill{font-size:12px;padding:2px 10px;border-radius:99px;background:var(--chip);color:var(--muted)}
+.pill.on{color:var(--accent)}
+.pill.on::before{content:"●";margin-right:4px;animation:breath 2.4s ease-in-out infinite}
+@keyframes breath{50%{opacity:.25}}
+.prog{margin-left:auto;font-size:12px;color:var(--muted)}
+nav{max-width:760px;margin:0 auto;padding:8px 16px 0;display:flex;gap:4px}
+nav button{border:0;background:none;color:var(--muted);font:inherit;padding:8px 12px;border-bottom:2px solid transparent;cursor:pointer}
+nav button.act{color:var(--ink);border-color:var(--accent);font-weight:600}
+.daynav{display:flex;align-items:center;gap:8px;margin:18px 0 10px}
+.daynav h2{margin:0;font-size:20px}
+.daynav button{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:8px;width:32px;height:32px;cursor:pointer;font-size:16px}
+.daynav .today{width:auto;padding:0 10px;font-size:13px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin:10px 0}
+.digest h3{margin:0 0 6px;font-size:16px}
+.digest .blk{margin:6px 0;color:var(--ink)} .digest .blk b{color:var(--accent);margin-right:6px}
+.tl{position:relative}
+.item{display:grid;grid-template-columns:52px 1fr;gap:10px;align-items:start}
+.time{font-variant-numeric:tabular-nums;color:var(--muted);font-size:13px;padding-top:16px;text-align:right}
+.ev{cursor:pointer}
+.ev .top{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.chip{font-size:12px;padding:1px 8px;border-radius:6px;background:var(--chip);color:var(--muted)}
+.ev .title{font-weight:600}
+.ev.low .title{font-weight:500;color:var(--muted)}
+.ev .sum{margin-top:4px;color:var(--ink)}
+.ev.low .sum{display:none}
+.star{color:var(--accent);font-size:13px}
+.sec{margin-top:10px;font-size:14px}
+.sec h4{margin:10px 0 4px;font-size:13px;color:var(--muted);font-weight:600}
+.sec ul{margin:0;padding-left:18px}
+.lines{margin-top:8px;border-top:1px dashed var(--line);padding-top:8px;max-height:60vh;overflow:auto}
+.ln{display:grid;grid-template-columns:62px 1fr;gap:8px;font-size:14px;padding:3px 0}
+.ln .lt{color:var(--muted);font-variant-numeric:tabular-nums;font-size:12px;padding-top:2px;cursor:pointer}
+.ln .lt:hover{color:var(--accent)}
+.sp{font-weight:600;margin-right:4px}
+.sp.me{color:var(--me)} .sp.far{color:var(--far)} .sp.oth{color:var(--other)}
+.note{border-style:dashed}
+.note .q{font-weight:600}
+.note .ans{margin-top:6px;padding:8px 10px;border-radius:8px;background:var(--chip);font-size:14px}
+.empty{color:var(--muted);text-align:center;padding:40px 0}
+.pending{color:var(--muted);font-size:14px}
+a{color:var(--accent)}
+input[type=search]{width:100%;font:inherit;padding:10px 14px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);margin-top:18px}
+.hit{font-size:14px;padding:6px 0;border-bottom:1px solid var(--line)}
+.hit .lt{color:var(--muted);font-size:12px;margin-right:6px}
+.player{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(14px + env(safe-area-inset-bottom,0px));width:min(560px,calc(100% - 32px));z-index:9}
+.player audio{width:100%}
+</style>
+</head>
+<body>
+<header>
+  <div class="bar"><span class="logo">听记</span><span id="rec" class="pill">…</span><span id="prog" class="prog"></span></div>
+  <nav><button data-v="day" class="act">今日</button><button data-v="projects">项目</button><button data-v="insights">觉察</button><button data-v="search">搜索</button></nav>
+</header>
+<div class="wrap" id="main"></div>
+<div class="player" id="player" hidden><audio id="au" controls preload="none"></audio></div>
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const api = p => fetch(p).then(r => r.json());
+let view = "day", day = new Date();
+const ymd = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+const wk = "日一二三四五六";
+const catColor = {"口述给AI":"#2f7f7a","工作会议":"#c2552d","客户沟通":"#b0761f","电话语音":"#3d6b8a","同事讨论":"#7a5ea8","灵感思考":"#5b7d4f","学习":"#2f7f7a","生活闲聊":"#8a847a","媒体外放":"#9a9a9a"};
+function spCls(s){ return s === "我" ? "me" : "oth"; }
+function list(title, arr, f = x => esc(x)){ return arr && arr.length ? `<h4>${title}</h4><ul>${arr.map(x => `<li>${f(x)}</li>`).join("")}</ul>` : ""; }
+const todo = t => `${esc(t.who)}：${esc(t.what)}${t.due ? `（${esc(t.due)}）` : ""}`;
+
+document.querySelectorAll("nav button").forEach(b => b.onclick = () => {
+  document.querySelectorAll("nav button").forEach(x => x.classList.toggle("act", x === b));
+  view = b.dataset.v; render();
+});
+
+async function status(){
+  try{
+    const d = await api(`/api/day?d=${ymd(new Date())}`);
+    const st = d.status.recorder;
+    const rec = $("#rec");
+    if(!st || st.age_seconds > 20){ rec.textContent = "录音器没在运行"; rec.className = "pill"; }
+    else if(!st.enabled){ rec.textContent = "录音已关闭"; rec.className = "pill"; }
+    else if(st.capturing){ rec.textContent = "录音中"; rec.className = "pill on"; }
+    else if(st.paused_for_media && st.paused_for_media.length){ rec.textContent = "电脑在放声音，暂停中"; rec.className = "pill"; }
+    else{ rec.textContent = st.mic.error || "麦克风没开"; rec.className = "pill"; }
+    $("#prog").textContent = d.status.processed_until ? `已整理至 ${d.status.processed_until.slice(11,16)}` : "";
+  }catch(e){}
+}
+
+async function renderDay(){
+  const d = ymd(day);
+  const m = $("#main");
+  m.innerHTML = `<div class="daynav"><button id="pv">‹</button><h2>${day.getMonth()+1}月${day.getDate()}日 周${wk[day.getDay()]}</h2><button id="nx">›</button><button class="today" id="td">今天</button></div><div id="dg"></div><div class="tl" id="tl"><div class="empty">加载中…</div></div>`;
+  $("#pv").onclick = () => { day.setDate(day.getDate()-1); render(); };
+  $("#nx").onclick = () => { day.setDate(day.getDate()+1); render(); };
+  $("#td").onclick = () => { day = new Date(); render(); };
+  const data = await api(`/api/day?d=${d}`);
+  const s = data.summary;
+  if(s && s.headline){
+    $("#dg").innerHTML = `<div class="card digest"><h3>${esc(s.headline)}</h3>${(s.blocks||[]).map(b => `<div class="blk"><b>${esc(b.name)}</b>${esc(b.summary)}</div>`).join("")}
+      <div class="sec">${list("待办", s.todos, todo)}${list("答应别人的", s.commitments)}${list("风险", s.risks)}</div></div>`;
+  }
+  const r = data.records;
+  const items = [...(r.events||[]).map(e => ({t: e.start, e})), ...(r.notes||[]).map(n => ({t: n.time, n}))].sort((a,b) => a.t < b.t ? -1 : 1);
+  const tl = $("#tl");
+  if(!items.length && !r.unorganized_sentences){ tl.innerHTML = `<div class="empty">这天还没有记录</div>`; return; }
+  tl.innerHTML = items.map(x => x.e ? evHTML(x.e) : noteHTML(x.n)).join("") +
+    (r.unorganized_sentences ? `<div class="item"><div class="time">…</div><div class="card pending">${esc(r.unorganized_sentences)}　<a href="#" id="rawlink">看原文</a></div></div>` : "");
+  tl.querySelectorAll(".ev").forEach(el => el.onclick = ev => { if(!ev.target.closest(".lines")) toggleEv(el); });
+  const rl = $("#rawlink"); if(rl) rl.onclick = async ev => { ev.preventDefault(); const t = await api(`/api/transcript?d=${d}`); rl.parentElement.innerHTML = `<div class="lines">${t.lines.map(l => `<div>${esc(l)}</div>`).join("")}</div>`; };
+}
+
+function evHTML(e){
+  const low = e.importance <= 1;
+  return `<div class="item"><div class="time">${e.start.slice(11,16)}</div><div class="card ev ${low ? "low" : ""}" data-id="${e.id.slice(1)}">
+    <div class="top"><span class="chip" style="color:${catColor[e.category] || "var(--muted)"}">${esc(e.category || "其他")}</span><span class="title">${esc(e.title)}</span>${e.importance >= 3 ? `<span class="star">★ 重要</span>` : ""}<span class="chip">${e.start.slice(11,16)}–${e.end.slice(11,16)}</span></div>
+    <div class="sum">${esc(e.summary)}</div><div class="more"></div></div></div>`;
+}
+
+function noteHTML(n){
+  return `<div class="item"><div class="time">${n.time.slice(11,16)}</div><div class="card note">
+    <div class="top"><span class="chip">💡 随口记 · ${esc(n.intent || n.status)}</span><span class="q">${esc(n.title || "")}</span></div>
+    <div class="sum">${esc(n.text || "（还在转写）")}</div>${n.answer ? `<div class="ans">${esc(n.answer)}</div>` : ""}${n.due ? `<div class="sec">时间：${esc(n.due)}</div>` : ""}</div></div>`;
+}
+
+async function toggleEv(el){
+  const more = el.querySelector(".more");
+  if(more.innerHTML){ more.innerHTML = ""; return; }
+  more.innerHTML = `<div class="sec">加载中…</div>`;
+  const e = await api(`/api/event?id=${el.dataset.id}`);
+  more.innerHTML = `<div class="sec">${list("要点", e.points)}${list("待办", e.todos, todo)}${list("决定", e.decisions)}${list("标了重点的话", e.highlights)}${list("值得记住", e.memories)}
+    ${e.people && e.people.length ? `<h4>人</h4>${esc(e.people.join("、"))}` : ""}${e.project_id ? `<h4>项目</h4><a href="#" data-p="${e.project_id}">查看项目</a>` : ""}</div>
+    <div class="lines">${e.lines.map(l => `<div class="ln"><span class="lt" ${l.piece ? `data-piece="${l.piece}" data-off="${l.offset}" title="点一下从这句开始听"` : ""}>${l.t}${l.piece ? " ▸" : ""}</span><span><span class="sp ${spCls(l.speaker)}">${esc(l.speaker)}</span>${esc(l.text)}</span></div>`).join("")}</div>`;
+  more.querySelectorAll("[data-piece]").forEach(x => x.onclick = () => play(x.dataset.piece, +x.dataset.off));
+  const pl = more.querySelector("[data-p]"); if(pl) pl.onclick = ev => { ev.preventDefault(); openProject(pl.dataset.p); };
+}
+
+function play(piece, off){
+  const au = $("#au"); $("#player").hidden = false;
+  const src = `/api/audio?piece=${piece}`;
+  if(!au.src.endsWith(src)) au.src = src;
+  const go = () => { au.currentTime = Math.max(0, off - 0.3); au.play(); };
+  au.readyState >= 1 ? go() : au.addEventListener("loadedmetadata", go, {once: true});
+  au.load && au.readyState < 1 && au.load();
+}
+
+async function renderProjects(){
+  const ps = await api("/api/projects");
+  $("#main").innerHTML = `<div class="daynav"><h2>项目</h2></div>` + (ps.length ? ps.map(p => `<div class="card ev" data-p="${p.id}"><div class="top"><span class="title">${esc(p.name)}</span><span class="chip">${esc(p.updated.slice(5,16))}</span></div><div class="sum">${esc(p.stage || "")}</div></div>`).join("") : `<div class="empty">同一件事被聊到两次以上，就会自动归成项目</div>`);
+  document.querySelectorAll("[data-p]").forEach(el => el.onclick = () => openProject(el.dataset.p));
+}
+
+async function openProject(id){
+  view = "projects";
+  document.querySelectorAll("nav button").forEach(x => x.classList.toggle("act", x.dataset.v === "projects"));
+  const p = await api(`/api/project?id=${id}`);
+  $("#main").innerHTML = `<div class="daynav"><button id="bk">‹</button><h2>${esc(p.name)}</h2></div>
+    <div class="card"><div>${esc(p.summary)}</div><div class="sec"><h4>现在到哪一步</h4>${esc(p.stage)}${list("风险", p.risks)}${list("下次该追问", p.next_questions)}${list("谁答应过什么", p.commitments, c => `${esc(c.who)}：${esc(c.what)}（${esc(c.status)}，${esc(c.when)}）`)}</div></div>
+    <h4 style="color:var(--muted)">时间线</h4>${p.timeline.map(e => `<div class="card"><div class="top"><span class="chip">${e.start.slice(0,16)}</span><span class="title">${esc(e.title)}</span></div><div class="sum">${esc(e.summary)}</div></div>`).join("")}`;
+  $("#bk").onclick = () => renderProjects();
+}
+
+async function renderInsights(){
+  const xs = await api("/api/insights");
+  $("#main").innerHTML = `<div class="daynav"><h2>觉察</h2></div>` + (xs.length ? xs.map(x => `<div class="card"><div class="title" style="font-weight:600">${esc(x.insight)}</div><div class="sec">${list("依据", x.evidence)}<h4>下次试试</h4>${esc(x.suggestion)}</div><div class="chip" style="display:inline-block;margin-top:8px">${esc(x.period)}</div></div>`).join("") : `<div class="empty">每周日晚上从「我」说过的话里做一次</div>`);
+}
+
+function renderSearch(){
+  $("#main").innerHTML = `<input type="search" id="q" placeholder="搜原话、事件、随口记（中文至少 3 个字）" autofocus><div id="res"></div>`;
+  let t;
+  $("#q").oninput = e => { clearTimeout(t); t = setTimeout(async () => {
+    const q = e.target.value.trim(); if(!q) { $("#res").innerHTML = ""; return; }
+    const r = await api(`/api/search?q=${encodeURIComponent(q)}`);
+    $("#res").innerHTML = (r.events.length ? `<h4>事件</h4>` + r.events.map(e => `<div class="hit"><span class="lt">${e.start.slice(0,16)}</span><b>${esc(e.title)}</b> ${esc(e.summary)}</div>`).join("") : "")
+      + (r.notes.length ? `<h4>随口记</h4>` + r.notes.map(n => `<div class="hit"><span class="lt">${n.time.slice(0,16)}</span>${esc(n.text)}</div>`).join("") : "")
+      + (r.sentences.length ? `<h4>原话</h4>` + r.sentences.map(s => `<div class="hit">${esc(s)}</div>`).join("") : "")
+      || `<div class="empty">没搜到</div>`;
+  }, 300); };
+}
+
+function render(){ ({day: renderDay, projects: renderProjects, insights: renderInsights, search: renderSearch})[view](); }
+render(); status();
+setInterval(status, 10000);
+setInterval(() => { if(view === "day" && ymd(day) === ymd(new Date()) && !document.querySelector(".more:not(:empty)")) renderDay(); }, 60000);
+</script>
+</body>
+</html>
